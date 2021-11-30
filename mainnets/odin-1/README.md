@@ -4,7 +4,7 @@
 The genesis transactions sent before {DATETIME} will be used to publish the genesis.json on or before {DATETIME} and then start the chain at 1400UTC. We will be announcing on all the platforms for the same. Please join our [Discord](https://discord.gg/cUXKyRq) and [Odin Telegram Group](https://t.me/odinprotocol) to stay updated.
 
 ### Hardware Requirements
-#### Minimal
+#### Minimum
 - 4 GB RAM
 - 256 GB SSD
 - 3.2 x4 GHz CPU
@@ -23,7 +23,9 @@ The genesis transactions sent before {DATETIME} will be used to publish the gene
 
 ### Install Prerequisites 
 
-#### Basic Packages
+The following are necessary to build the odin cli from source. 
+
+#### 1. Basic Packages
 ```bash:
 # update the local package list and install any available upgrades 
 sudo apt-get update && sudo apt upgrade -y 
@@ -31,10 +33,10 @@ sudo apt-get update && sudo apt upgrade -y
 sudo apt-get install make build-essential gcc git jq chrony -y
 ```
 
-#### Install Go
+#### 2. Install Go
 Follow the instructions [here](https://golang.org/doc/install) to install Go.
 
-For an Ubuntu LTS, you can do:
+Alternatively, for Ubuntu LTS, you can do:
 ```bash:
 wget https://golang.org/dl/go1.17.3.linux-amd64.tar.gz
 sudo tar -C /usr/local -xzf go1.17.3.linux-amd64.tar.gz
@@ -52,10 +54,11 @@ EOF
 source ~/.profile
 go version
 ```
+Output should be: `go version go1.17.3 linux/amd64`
 
 ### Install Odind from source
 
-Download network
+1. Clone repository
 ```bash:
 git clone https://github.com/GeoDB-Limited/odin-core.git
 cd odin-core
@@ -72,17 +75,18 @@ git checkout v2.0.0
 
 Once you're on the correct tag, you can build:
 
+2. Install CLI
+While inside `~/odin-core/`
 ```bash:
-# in odin-core dir
 make install
 ```
 	
-To confirm that the installation has succeeded, you can run:
+To confirm that the installation was successful, you can run:
 
 ```bash:
 odind version
-# output: v2.0.0
 ```
+Output should be: `v2.0.0`
 
 ### Init chain
 ```bash:
@@ -105,6 +109,10 @@ odind keys show <key-name> --ledger
 odind keys show <key-name> -a
 ```
 
+### Set minimum gas fees
+perl -i -pe 's/^minimum-gas-prices = .+?$/minimum-gas-prices = "0.0125loki"/' ~/.odind/config/app.toml
+
+
 ## Instructions for Genesis Validators
 
 ### Create Gentx
@@ -112,7 +120,9 @@ odind keys show <key-name> -a
 1. Add genesis account:
 **WARNING: DO NOT PUT MORE THAN 10000000loki or your gentx will be rejected**
 
-`odind add-genesis-account "{{KEY_NAME}}" 10000000loki`
+```
+odind add-genesis-account "{{KEY_NAME}}" 10000000loki
+```
 
 2. Create Gentx
 ```
@@ -162,34 +172,6 @@ Verify the hash:
 jq -S -c -M ' ' ~/.odind/config/genesis.json | shasum -a 256
 ```
 
-### Sync the node
-```bash:
-odind start
-```
-
-### Create validator
-
-```bash:
-odind tx staking create-validator \ 
---amount 1000000loki \ 
---commission-max-change-rate "0.05" \ 
---commission-max-rate "0.10" \ 
---commission-rate "0.05" \ 
---min-self-delegation "1" \ 
---details "validators write bios too" \ 
---pubkey=$(odind tendermint show-validator) \ 
---moniker $MONIKER_NAME \ 
---chain-id $CHAIN_ID \ 
---gas-prices 0.025loki \ 
---from <key-name>
-```
-
-### Backup critical files
-```bash:
-priv_validator_key.json
-node_key.json
-```
-
 ### Setup Unit/Daemon file
 
 ```bash:
@@ -224,6 +206,47 @@ systemctl start odin.service
 
 # 6. watch logs
 journalctl -u odin.service -f
+```
 
+Congratulations! You now have a full node. Once the node is synced with the network, 
+you can then make your node a validator.
+
+
+### Create validator
+1. Transfer funds to your validator address. A minimum of 1 ODIN is required to start a validator.
+
+2. Confirm your address has the funds.
+
+```
+odind q bank balances $(odind keys show -a <key-alias>)
+```
+
+3. Run the create-validator transaction
+**Note: 1,000,000 loki = 1 ODIN, so this validator will start with 1 ODIN**
+
+```bash:
+odind tx staking create-validator \ 
+--amount 1000000loki \ 
+--commission-max-change-rate "0.05" \ 
+--commission-max-rate "0.10" \ 
+--commission-rate "0.05" \ 
+--min-self-delegation "1" \ 
+--details "validators write bios too" \ 
+--pubkey $(odind tendermint show-validator) \ 
+--moniker $MONIKER_NAME \ 
+--chain-id $CHAIN_ID \ 
+--fees 2000loki \
+--from <key-name>
+```
+
+To ensure your validator is active, run:
+```
+odind q staking validators | grep moniker
+```
+
+### Backup critical files
+```bash:
+priv_validator_key.json
+node_key.json
 ```
 
